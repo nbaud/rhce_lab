@@ -3,9 +3,9 @@
 
 nodes = {
   "control" => { ip: "192.168.56.10", memory: 4096, cpus: 2 },
-  "node1"   => { ip: "192.168.56.11", memory: 2048, cpus: 1, research_disk: "2GB" },
+  "node1"   => { ip: "192.168.56.11", memory: 2048, cpus: 1, research_disk: "2GB", partition_disk: "2GB" },
   "node2"   => { ip: "192.168.56.12", memory: 2048, cpus: 1, research_disk: "2GB" },
-  "node3"   => { ip: "192.168.56.13", memory: 2048, cpus: 1, research_disk: "1GB" },
+  "node3"   => { ip: "192.168.56.13", memory: 2048, cpus: 1, research_disk: "1GB", partition_disk: "1GB" },
   "node4"   => { ip: "192.168.56.14", memory: 2048, cpus: 1, research_disk: "1GB" },
   "node5"   => { ip: "192.168.56.15", memory: 2048, cpus: 1 }
 }
@@ -45,6 +45,16 @@ Vagrant.configure("2") do |config|
           size: settings[:research_disk]
       end
 
+      # Lab 17 uses /dev/sdc to preserve lab 16's research VG on /dev/sdb.
+      # Leave this disk blank: students create the partition and filesystem.
+      # node1: 1200 MiB success; node3 (prod): 800 MiB fallback and /srv mount.
+      # Other nodes have no /dev/sdc, exercising the missing-disk condition.
+      if settings[:partition_disk]
+        vm.vm.disk :disk,
+          name: "rhce-rocky10-#{name}-partition",
+          size: settings[:partition_disk]
+      end
+
       vm.vm.provision "shell", privileged: true, inline: <<-SHELL
         set -eu
         dnf -y install openssh-server python3 sudo
@@ -62,12 +72,13 @@ HOSTS
       unless name == "control"
         vm.vm.provision "shell", name: "lvm-tools", privileged: true, inline: <<-'SHELL'
           set -eu
-          dnf -y install lvm2 e2fsprogs
+          dnf -y install lvm2 e2fsprogs parted
         SHELL
       end
 
       if settings[:research_disk]
-        # This box has its OS on /dev/sda; the only extra disk is /dev/sdb.
+        # This box has its OS on /dev/sda and the research disk on /dev/sdb.
+        # The optional partition-lab disk is /dev/sdc and is not initialized here.
         # Refuse unexpected layouts rather than selecting another disk.
         vm.vm.provision "shell", name: "research-vg", privileged: true,
           args: [settings[:research_disk]], inline: <<-'SHELL'
