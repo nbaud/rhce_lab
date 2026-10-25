@@ -7,7 +7,8 @@ nodes = {
   "node2"   => { ip: "192.168.56.12", memory: 2048, cpus: 1, research_disk: "2GB" },
   "node3"   => { ip: "192.168.56.13", memory: 2048, cpus: 1, research_disk: "1GB", partition_disk: "1GB" },
   "node4"   => { ip: "192.168.56.14", memory: 2048, cpus: 1, research_disk: "1GB" },
-  "node5"   => { ip: "192.168.56.15", memory: 2048, cpus: 1 }
+  "node5"   => { ip: "192.168.56.15", memory: 2048, cpus: 1 },
+  "repo"    => { ip: "192.168.56.20", memory: 2048, cpus: 1 }
 }
 
 hosts_entries = nodes.map do |name, settings|
@@ -37,6 +38,13 @@ Vagrant.configure("2") do |config|
         vb.gui = false
       end
 
+      # Attach the repository DVD only to the repo VM.
+      if name == "repo"
+        vm.vm.disk :dvd,
+          name: "rocky-repository-dvd",
+          file: File.expand_path("~/iso/Rocky-10.2-x86_64-dvd1.iso")
+      end
+
       # Vagrant manages creation, attachment and lifecycle of these extra disks.
       # No primary: true: the existing operating-system disk is not resized.
       if settings[:research_disk]
@@ -45,10 +53,6 @@ Vagrant.configure("2") do |config|
           size: settings[:research_disk]
       end
 
-      # Lab 17 uses /dev/sdc to preserve lab 16's research VG on /dev/sdb.
-      # Leave this disk blank: students create the partition and filesystem.
-      # node1: 1200 MiB success; node3 (prod): 800 MiB fallback and /srv mount.
-      # Other nodes have no /dev/sdc, exercising the missing-disk condition.
       if settings[:partition_disk]
         vm.vm.disk :disk,
           name: "rhce-rocky10-#{name}-partition",
@@ -69,7 +73,7 @@ Vagrant.configure("2") do |config|
 HOSTS
       SHELL
 
-      unless name == "control"
+      unless ["control", "repo"].include?(name)
         vm.vm.provision "shell", name: "lvm-tools", privileged: true, inline: <<-'SHELL'
           set -eu
           dnf -y install lvm2 e2fsprogs parted
