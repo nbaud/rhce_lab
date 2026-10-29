@@ -88,10 +88,12 @@ hosts_entries = nodes.map do |name, settings|
 end.join("\n")
 
 Vagrant.configure("2") do |config|
+if Vagrant.has_plugin?("vagrant-vbguest")
+  config.vbguest.auto_update = false
+end
   config.vm.box = "rockylinux/10"
-  config.vm.box_version = "0"
   config.vm.box_check_update = false
-
+  config.vm.box_url = "https://dl.rockylinux.org/pub/rocky/10/images/x86_64/Rocky-10-Vagrant-Vbox-10.2-20260525.0.x86_64.vagrant.virtualbox.box"
   config.vm.synced_folder ".", "/vagrant", disabled: true
 
   nodes.each do |name, settings|
@@ -105,7 +107,7 @@ Vagrant.configure("2") do |config|
 
       vm.vm.provider "virtualbox" do |vb|
         vb.name = "rhce-rocky10-#{name}"
-        vb.memory = settings[:memory]
+        vb.memory = (name == "control" ? 2048 : 1024)
         vb.cpus = settings[:cpus]
         vb.gui = false
 
