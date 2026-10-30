@@ -2,3 +2,5 @@
 *.vdi
 *.vmdk
 control.pub
+
+/bootstrap_automator.pub
